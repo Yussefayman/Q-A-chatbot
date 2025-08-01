@@ -10,7 +10,8 @@ groq==0.4.1
 sentence-transformers==2.2.2
 
 # Document processing
-docling==1.0.0
+docling==2.43.0
+docling-core==2.44.1
 PyPDF2==3.0.1
 
 # Vector database
