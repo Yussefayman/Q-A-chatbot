@@ -16,3 +16,20 @@ class HealthCheck(BaseModel):
     timestamp: datetime
     version: str
     services: Dict[str, str] 
+
+
+class QuestionResponse(BaseModel):
+    """Response model for question answers"""
+    question: str
+    answer: str
+    sources: List[str]
+    response_time: float
+    retrieved_chunks: int
+    confidence_score: Optional[float] = None
+
+class DocumentUploadResponse(BaseModel):
+    """Response model for document upload"""
+    message: str
+    document_id: str
+    chunks_created: int
+    processing_time: float

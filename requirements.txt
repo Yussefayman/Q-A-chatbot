@@ -7,7 +7,7 @@ passlib[bcrypt]==1.7.4
 
 # LLM and AI services
 groq==0.4.1
-sentence-transformers==2.2.2
+sentence-transformers==5.0.0
 
 # Document processing
 docling==2.43.0

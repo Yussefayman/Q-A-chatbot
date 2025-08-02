@@ -85,7 +85,7 @@ class LLMService:
         return "\n\n".join(formatted_context)
     
     def _create_prompt(self, question: str, context: str) -> str:
-        return f"""Based on the following context, please answer the question. If the answer cannot be found in the context, please say so clearly.
+        return f"""Based on the following context, please answer the question. If the answer cannot be found in the context, please say so clearly. Don't say in the result that it has provided context.
         Context:{context}
         Question: {question}
         Please provide a clear, concise answer based on the context provided. If you're unsure or the information isn't available in the context, please indicate that."""
@@ -98,7 +98,8 @@ class LLMService:
         - If the answer isn't in the context, say so
         - Don't make up information
         - Cite relevant parts of the context when possible
-        - Maintain a professional and helpful tone"""
+        - Maintain a professional and helpful tone
+        - Don't mention based on provided context sentence"""
     
     def health_check(self) -> bool:
         """Check if the LLM service is healthy"""
