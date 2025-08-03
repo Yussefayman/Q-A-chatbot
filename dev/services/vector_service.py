@@ -18,9 +18,9 @@ from sentence_transformers import SentenceTransformer
 logger = logging.getLogger(__name__)
 
 class VectorService:
-    """Simple vector database service using ChromaDB"""
+    """REDESIGNED Simple vector database service using ChromaDB"""
     
-    def __init__(self, persist_directory: str = "./chroma_db", collection_name: str = "documents"):
+    def __init__(self, persist_directory: str = "./chroma_db", collection_name: str = "user_documents"):
         self.persist_directory = persist_directory
         self.collection_name = collection_name
         self.embedding_model_name = "all-MiniLM-L6-v2"
@@ -63,13 +63,15 @@ class VectorService:
             print(f"Created new collection: {self.collection_name}")
             return collection
     
-    def add_documents(self, doc_chunks, user_id: Optional[int] = None) -> int:
+    def add_document(self, user_id: int, document_id: int, filename: str, doc_chunks) -> int:
         """
-        Add document chunks to the vector database
+        Add document chunks to the vector database - REDESIGNED SIMPLE VERSION
         
         Args:
-            doc_chunks: List of DocumentChunk objects (simple version)
-            user_id: Optional user ID for multi-user isolation
+            user_id: User ID who owns the document
+            document_id: Document ID from SQL database
+            filename: Original filename
+            doc_chunks: List of DocumentChunk objects
             
         Returns:
             Number of chunks successfully added
@@ -79,41 +81,35 @@ class VectorService:
             return 0
         
         try:
-            print(f"Adding {len(doc_chunks)} document chunks to vector database")
+            print(f"Adding {len(doc_chunks)} chunks for user {user_id}, document {document_id}")
             
-            # Prepare data for ChromaDB
+            # Prepare data for ChromaDB - SIMPLE STRUCTURE
             texts = []
             ids = []
             metadatas = []
             
-            for chunk in doc_chunks:
+            for i, chunk in enumerate(doc_chunks):
+                # SIMPLE ID FORMAT: user_id + document_id + chunk_number
+                chunk_id = f"{user_id}_{document_id}_{i}"
+                ids.append(chunk_id)
+                
                 # Extract text
                 texts.append(chunk.text)
                 
-                # Create unique ID
-                chunk_id = f"{chunk.source}_{chunk.chunk_id}"
-                if user_id:
-                    chunk_id = f"user_{user_id}_{chunk_id}"
-                ids.append(chunk_id)
-                
-                # Create simple metadata
+                # SIMPLE METADATA - Only what we need
                 metadata = {
-                    "source": chunk.source,
-                    "chunk_id": chunk.chunk_id,
-                    "text_length": len(chunk.text)
+                    "user_id": user_id,           # For user isolation
+                    "document_id": document_id,   # For document deletion
+                    "filename": filename,         # For reference
+                    "chunk_index": i              # For ordering
                 }
-                
-                # Add user ID for multi-user isolation
-                if user_id:
-                    metadata["user_id"] = user_id
-                
                 metadatas.append(metadata)
             
             # Generate embeddings
             print("Generating embeddings...")
             embeddings = self.embedding_model.encode(
                 texts, 
-                show_progress_bar=len(texts) > 10,
+                show_progress_bar=len(texts) > 5,
                 convert_to_numpy=True
             )
             
@@ -125,41 +121,36 @@ class VectorService:
                 metadatas=metadatas
             )
             
-            print(f"Successfully added {len(doc_chunks)} chunks to vector database")
+            print(f"✅ Successfully added {len(doc_chunks)} chunks to vector database")
             return len(doc_chunks)
             
         except Exception as e:
-            print(f"Error adding documents to vector database: {str(e)}")
+            print(f"❌ Error adding documents to vector database: {str(e)}")
             raise
     
-    def search_similar(self, query: str, n_results: int = 3, user_id: Optional[int] = None) -> List[Dict[str, Any]]:
+    def search_similar(self, query: str, user_id: int, n_results: int = 3) -> List[Dict[str, Any]]:
         """
-        Search for similar document chunks
+        Search for similar document chunks - USER ISOLATED
         
         Args:
             query: Search query
+            user_id: User ID for filtering results
             n_results: Number of results to return
-            user_id: Optional user ID for filtering results
             
         Returns:
             List of similar chunks with metadata
         """
         try:
-            print(f"Searching for similar chunks: query='{query[:50]}...', n_results={n_results}")
+            print(f"Searching for user {user_id}: '{query[:50]}...', n_results={n_results}")
             
             # Generate embedding for query
             query_embedding = self.embedding_model.encode([query])
             
-            # Prepare where clause for user filtering
-            where_clause = None
-            if user_id:
-                where_clause = {"user_id": user_id}
-            
-            # Search in vector database
+            # Search with user filter - SIMPLE WHERE CLAUSE
             results = self.collection.query(
                 query_embeddings=query_embedding.tolist(),
                 n_results=n_results,
-                where=where_clause,
+                where={"user_id": user_id},  # ONLY USER'S DOCUMENTS
                 include=["documents", "metadatas", "distances"]
             )
             
@@ -171,56 +162,140 @@ class VectorService:
                         "text": results['documents'][0][i],
                         "metadata": results['metadatas'][0][i],
                         "distance": results['distances'][0][i],
-                        "similarity_score": 1 - results['distances'][0][i]  # Convert distance to similarity
+                        "similarity_score": 1 - results['distances'][0][i]
                     })
             
-            print(f"Found {len(formatted_results)} similar chunks")
+            print(f"Found {len(formatted_results)} similar chunks for user {user_id}")
             return formatted_results
             
         except Exception as e:
-            print(f"Error searching similar chunks: {str(e)}")
+            print(f"❌ Error searching similar chunks: {str(e)}")
             return []
     
-    def get_collection_stats(self, user_id: Optional[int] = None) -> Dict[str, Any]:
+    def delete_document(self, user_id: int, document_id: int) -> int:
         """
-        Get statistics about the collection
+        Delete all chunks for a specific document - BULLETPROOF VERSION
         
         Args:
-            user_id: Optional user ID for filtering stats
+            user_id: User ID who owns the document
+            document_id: Document ID to delete
             
         Returns:
-            Dictionary with collection statistics
+            Number of chunks deleted
         """
         try:
-            # Get all documents
-            where_clause = {"user_id": user_id} if user_id else None
+            print(f"Deleting document {document_id} for user {user_id}")
+            
+            # Get all chunks for this user and document
             results = self.collection.get(
-                where=where_clause,
+                where={
+                    "user_id": user_id,
+                    "document_id": document_id
+                },
+                include=["metadatas"]
+            )
+            
+            if results['ids']:
+                # Delete all matching chunks
+                self.collection.delete(ids=results['ids'])
+                deleted_count = len(results['ids'])
+                print(f"✅ Deleted {deleted_count} chunks for document {document_id}")
+                return deleted_count
+            else:
+                print(f"⚠️ No chunks found for document {document_id}")
+                return 0
+                
+        except Exception as e:
+            print(f"❌ Error deleting document from vector database: {str(e)}")
+            raise
+    
+    def delete_user_documents(self, user_id: int) -> int:
+        """
+        Delete ALL documents for a user
+        
+        Args:
+            user_id: User ID to delete all documents for
+            
+        Returns:
+            Number of chunks deleted
+        """
+        try:
+            print(f"Deleting ALL documents for user {user_id}")
+            
+            # Get all chunks for this user
+            results = self.collection.get(
+                where={"user_id": user_id},
+                include=["metadatas"]
+            )
+            
+            if results['ids']:
+                # Delete all user's chunks
+                self.collection.delete(ids=results['ids'])
+                deleted_count = len(results['ids'])
+                print(f"✅ Deleted {deleted_count} chunks for user {user_id}")
+                return deleted_count
+            else:
+                print(f"No chunks found for user {user_id}")
+                return 0
+                
+        except Exception as e:
+            print(f"❌ Error deleting user documents: {str(e)}")
+            raise
+    
+    def get_user_stats(self, user_id: int) -> Dict[str, Any]:
+        """
+        Get statistics for a specific user
+        
+        Args:
+            user_id: User ID to get stats for
+            
+        Returns:
+            Dictionary with user statistics
+        """
+        try:
+            # Get all user's documents
+            results = self.collection.get(
+                where={"user_id": user_id},
                 include=["metadatas"]
             )
             
             total_chunks = len(results['ids']) if results['ids'] else 0
             
-            # Count unique sources
-            sources = set()
+            # Count unique documents
+            unique_documents = set()
             if results['metadatas']:
                 for metadata in results['metadatas']:
-                    if 'source' in metadata:
-                        sources.add(metadata['source'])
+                    unique_documents.add(metadata['document_id'])
             
-            stats = {
+            return {
+                "user_id": user_id,
                 "total_chunks": total_chunks,
-                "unique_documents": len(sources),
-                "collection_name": self.collection_name,
-                "embedding_model": self.embedding_model_name
+                "unique_documents": len(unique_documents),
+                "collection_name": self.collection_name
             }
             
-            if user_id:
-                stats["user_id"] = user_id
-            
-            return stats
-            
         except Exception as e:
-            print(f"Error getting collection stats: {str(e)}")
+            print(f"❌ Error getting user stats: {str(e)}")
             return {"error": str(e)}
     
+    def reset_collection(self) -> bool:
+        """
+        NUCLEAR OPTION: Reset entire collection
+        """
+        try:
+            # Delete the collection
+            self.chroma_client.delete_collection(name=self.collection_name)
+            
+            # Recreate it
+            self.collection = self.chroma_client.create_collection(
+                name=self.collection_name,
+                metadata={"hnsw:space": "cosine"},
+                embedding_function=None
+            )
+            
+            print("✅ Collection reset successfully")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error resetting collection: {str(e)}")
+            return False
