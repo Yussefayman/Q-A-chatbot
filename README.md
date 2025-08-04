@@ -225,7 +225,7 @@ EMBEDDING_MODEL_NAME=all-MiniLM-L6-v2
 
 ## 🧪 Testing
 
-QuestAI includes a comprehensive test suite built with **pytest** to ensure reliability and maintain code quality. The tests cover all major functionality including API endpoints, authentication, document processing, and integration workflows.
+QuestAI includes a simple test suite built with **pytest** to ensure reliability and maintain code quality. The tests cover most of functionality including API endpoints, authentication, document processing, and integration workflows.
 
 ### Test Coverage
 
