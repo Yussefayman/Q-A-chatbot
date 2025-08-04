@@ -36,7 +36,11 @@ QuestAI is a full-stack AI application that allows users to upload documents and
                        │  • LLaMA Models │
                        │  • Text Generation│
                        └─────────────────┘
+
 ```
+
+<img width="1216" height="1096" alt="image" src="https://github.com/user-attachments/assets/0e09effa-86ce-4c39-a82b-8de047093a23" />
+
 
 ### Core Components
 
