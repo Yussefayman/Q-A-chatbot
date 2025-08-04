@@ -224,7 +224,43 @@ EMBEDDING_MODEL_NAME=all-MiniLM-L6-v2
 - **Context Window**: 3 most relevant chunks per query
 
 ## 🧪 Testing
-to be added
+
+QuestAI includes a comprehensive test suite built with **pytest** to ensure reliability and maintain code quality. The tests cover all major functionality including API endpoints, authentication, document processing, and integration workflows.
+
+### Test Coverage
+
+| Component | Test Classes | Coverage |
+|-----------|-------------|----------|
+| **API Endpoints** | `TestHealthEndpoint`, `TestDocumentUpload`, `TestQuestionAnswering` | Health check, file upload, Q&A endpoints |
+| **Authentication** | `TestAuthentication`, `TestAuthenticationUtilities` | Registration, login, JWT tokens, password hashing |
+| **Document Processing** | `TestDocumentService` | Text extraction, PDF parsing, chunking |
+| **Core Services** | `TestQAService` | Document processing, question answering logic |
+| **Integration** | `TestIntegration` | End-to-end user workflows |
+
+### Key Test Scenarios
+
+**✅ Authentication & Security**
+- User registration and login
+- JWT token generation and validation
+- Password hashing and verification
+- Unauthorized access prevention
+
+**✅ Document Management**
+- File upload validation (type, size limits)
+- PDF and TXT file processing
+- Text chunking and embedding generation
+- User document isolation
+
+**✅ Question Answering**
+- Successful Q&A with context retrieval
+- Handling empty or invalid questions
+- No documents available scenarios
+- Error handling and recovery
+
+**✅ Integration Workflows**
+- Complete user journey: register → login → upload → ask
+- Cross-component functionality
+- Database operations and consistency
 
 ### API Testing with Postman
 
